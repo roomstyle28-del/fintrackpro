@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<link rel="manifest" href="manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinTrack Pro - Smart Finance Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        input:focus { outline: none; }
+        .modal-overlay { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 pb-20">
+
+    <div id="app">
+        <!-- Header -->
+        <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-md">
+            <div class="max-w-4xl mx-auto px-4 py-3">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="bg-indigo-600 p-1.5 rounded-lg shadow-sm">
+                            <i data-lucide="wallet" class="w-5 h-5 text-white"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-sm font-bold text-slate-800 leading-none">FinTrack Pro</h1>
+                            <p id="current-month" class="text-[10px] text-slate-500 font-medium"></p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="exportData()" title="Cadangkan Data" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="document.getElementById('importFile').click()" title="Pulihkan Data" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
+                            <i data-lucide="upload" class="w-4 h-4"></i>
+                        </button>
+                        <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
+                        
+                        <button onclick="saveToLocal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 hover:bg-indigo-700 transition-all text-xs font-bold shadow-sm">
+                            <i data-lucide="save" class="w-4 h-4"></i> Simpan
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center">
+                    <div class="flex flex-col">
+                        <span class="text-[9px] uppercase font-extrabold text-slate-400 tracking-tight">Pemasukan</span>
+                        <span id="display-total-pemasukan" class="text-sm font-extrabold truncate text-emerald-600">Rp 0</span>
+                    </div>
+                    <div class="flex flex-col border-x border-slate-100 px-1">
+                        <span class="text-[9px] uppercase font-extrabold text-slate-400 tracking-tight">Pengeluaran</span>
+                        <span id="display-total-pengeluaran" class="text-sm font-extrabold truncate text-rose-600">Rp 0</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[9px] uppercase font-extrabold text-slate-400 tracking-tight">Saldo Sisa</span>
+                        <span id="display-sisa" class="text-sm font-extrabold truncate text-indigo-600">Rp 0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-4xl mx-auto p-4 space-y-6">
+            <!-- Pemasukan Section -->
+            <section class="bg-emerald-50/50 rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
+                <div class="bg-emerald-100/50 px-4 py-3 border-b border-emerald-200/50 flex justify-between items-center">
+                    <div class="flex items-center gap-2 text-emerald-700">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <h2 class="font-bold text-xs tracking-tight uppercase">Pemasukan Bulan Ini</h2>
+                    </div>
+                </div>
+                <div class="p-3 space-y-2">
+                    <div class="flex items-center gap-3 p-2 bg-white rounded-xl border border-emerald-100/50 shadow-sm">
+                        <div class="flex-1">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Gaji Pokok</p>
+                            <input type="text" id="input-gaji" oninput="updateGaji(this.value)" class="w-full bg-transparent border-none p-0 text-sm font-extrabold text-emerald-700" value="0">
+                        </div>
+                    </div>
+                    <div id="pemasukan-lain-container" class="space-y-2"></div>
+                    <button onclick="addPemasukanLain()" class="w-full p-2 text-[10px] font-bold text-emerald-600 hover:bg-emerald-100/50 rounded-xl flex items-center justify-center gap-1.5 border border-dashed border-emerald-200 uppercase tracking-widest transition-all">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Pemasukan Lain
+                    </button>
+                </div>
+            </section>
+
+            <!-- Pengeluaran Section -->
+            <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="bg-slate-50/50 px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="layout-list" class="w-3.5 h-3.5 text-indigo-400"></i>
+                        <h2 class="font-bold text-slate-700 text-xs uppercase tracking-wider">Daftar Pengeluaran</h2>
+                    </div>
+                </div>
+                <div id="items-container" class="p-1.5 space-y-1"></div>
+                <div class="p-1.5">
+                    <button onclick="addNewItem()" class="w-full mt-1 p-2.5 text-[10px] font-bold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl flex items-center justify-center gap-1.5 border border-dashed border-slate-200 uppercase tracking-widest transition-all">
+                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Tambah Item Baru
+                    </button>
+                </div>
+            </section>
+
+            <!-- Histori Section -->
+            <section class="mt-10 pt-6 border-t border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2 uppercase tracking-widest">
+                        <i data-lucide="history" class="w-4 h-4 text-slate-400"></i> Riwayat Simpanan
+                    </h2>
+                    <button onclick="archiveCurrentMonth()" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all">
+                        <i data-lucide="archive" class="w-3.5 h-3.5"></i> Simpan ke Riwayat
+                    </button>
+                </div>
+                <div id="history-container" class="grid grid-cols-1 gap-3">
+                    <!-- Cards riwayat akan muncul di sini -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal Riwayat -->
+    <div id="history-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white w-[90%] max-w-lg rounded-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div>
+                    <h3 id="modal-title" class="font-bold text-slate-800">Detail Riwayat</h3>
+                    <p id="modal-date" class="text-[10px] text-slate-500"></p>
+                </div>
+                <button onclick="closeModal()" class="p-2 hover:bg-slate-200 rounded-full transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="modal-content" class="p-4 overflow-y-auto space-y-4 no-scrollbar">
+                <!-- Content injected here -->
+            </div>
+            <div class="p-4 border-t border-slate-100 bg-slate-50 flex gap-2">
+                <button onclick="restoreFromHistory()" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-xs font-bold shadow-lg hover:bg-indigo-700 transition-all">Pulihkan Data Ini</button>
+                <button onclick="closeModal()" class="flex-1 bg-white border border-slate-200 text-slate-600 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Custom -->
+    <div id="custom-alert" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-white px-6 py-3 rounded-full text-xs font-bold shadow-2xl opacity-0 pointer-events-none transition-all duration-300">
+        Pesan di sini
+    </div>
+
+    <script>
+        let state = {
+            gaji: 0,
+            pemasukanLain: [],
+            items: [],
+            history: [], // Riwayat bulan-bulan sebelumnya
+            expandedItems: new Set()
+        };
+
+        let selectedHistoryId = null;
+
+        const TYPE_CONFIG = {
+            fixed: { label: 'Pasti', color: 'bg-rose-500' },
+            important: { label: 'Penting', color: 'bg-amber-500' },
+            saving: { label: 'Tabungan', color: 'bg-emerald-500' },
+            other: { label: 'Lainnya', color: 'bg-slate-400' }
+        };
+        const TYPE_ORDER = ['fixed', 'important', 'saving', 'other'];
+
+        window.onload = () => {
+            const saved = localStorage.getItem('fintrack_data_pro');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                state.gaji = parsed.gaji || 0;
+                state.pemasukanLain = parsed.pemasukanLain || [];
+                state.items = parsed.items || [];
+                state.history = parsed.history || [];
+            }
+            document.getElementById('current-month').innerText = new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+            render();
+        };
+
+        // Utility Functions
+        function formatThousands(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        function parseThousands(str) {
+            if (typeof str !== 'string') str = str.toString();
+            return parseInt(str.replace(/\./g, "").replace(/[^0-9]/g, "")) || 0;
+        }
+
+        function formatIDR(num) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+        }
+
+        function showAlert(msg) {
+            const alert = document.getElementById('custom-alert');
+            alert.innerText = msg;
+            alert.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                alert.classList.add('opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+
+        // Logic Actions
+        function saveToLocal() {
+            localStorage.setItem('fintrack_data_pro', JSON.stringify(state));
+            showAlert('Data tersimpan secara otomatis ✅');
+        }
+
+        function archiveCurrentMonth() {
+            const totalLain = state.pemasukanLain.reduce((s, i) => s + (i.nominal || 0), 0);
+            const totalIn = state.gaji + totalLain;
+            const totalOut = state.items.reduce((s, i) => s + (i.nominal || 0), 0);
+            
+            if (totalIn === 0 && totalOut === 0) {
+                showAlert('Data kosong, tidak ada yang diarsipkan.');
+                return;
+            }
+
+            const monthName = new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+            
+            const newHistoryItem = {
+                id: Date.now(),
+                date: new Date().toISOString(),
+                label: monthName,
+                data: {
+                    gaji: state.gaji,
+                    pemasukanLain: JSON.parse(JSON.stringify(state.pemasukanLain)),
+                    items: JSON.parse(JSON.stringify(state.items))
+                },
+                summary: { totalIn, totalOut, sisa: totalIn - totalOut }
+            };
+
+            state.history.unshift(newHistoryItem); // Tambah di paling atas
+            saveToLocal();
+            render();
+            showAlert(`Catatan ${monthName} berhasil diarsipkan! 📥`);
+        }
+
+        function deleteHistory(id, e) {
+            e.stopPropagation();
+            if(!confirm('Hapus riwayat ini secara permanen?')) return;
+            state.history = state.history.filter(h => h.id !== id);
+            saveToLocal();
+            render();
+        }
+
+        function openHistoryDetail(id) {
+            const h = state.history.find(item => item.id === id);
+            selectedHistoryId = id;
+            
+            document.getElementById('modal-title').innerText = `Laporan ${h.label}`;
+            document.getElementById('modal-date').innerText = `Diarsipkan pada ${new Date(h.date).toLocaleDateString('id-ID', { dateStyle: 'full' })}`;
+            
+            const content = document.getElementById('modal-content');
+            content.innerHTML = `
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="bg-emerald-50 p-3 rounded-xl">
+                        <p class="text-[8px] font-bold text-emerald-600 uppercase">Pemasukan</p>
+                        <p class="text-sm font-black text-emerald-700">${formatIDR(h.summary.totalIn)}</p>
+                    </div>
+                    <div class="bg-rose-50 p-3 rounded-xl">
+                        <p class="text-[8px] font-bold text-rose-600 uppercase">Pengeluaran</p>
+                        <p class="text-sm font-black text-rose-700">${formatIDR(h.summary.totalOut)}</p>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b pb-1">Daftar Item</p>
+                    ${h.data.items.map(item => `
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-600 font-medium">${item.name || 'Tanpa Nama'}</span>
+                            <span class="font-bold text-slate-800">${formatIDR(item.nominal)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            const modal = document.getElementById('history-modal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('history-modal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        function restoreFromHistory() {
+            const h = state.history.find(item => item.id === selectedHistoryId);
+            if(confirm(`Timpa data saat ini dengan data dari ${h.label}?`)) {
+                state.gaji = h.data.gaji;
+                state.pemasukanLain = JSON.parse(JSON.stringify(h.data.pemasukanLain));
+                state.items = JSON.parse(JSON.stringify(h.data.items));
+                closeModal();
+                render();
+                showAlert('Data dipulihkan dari riwayat! 🔄');
+            }
+        }
+
+        // Export/Import (Update version for history)
+        function exportData() {
+            const dataStr = JSON.stringify(state);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const fileName = `FinTrack_Master_Backup_${new Date().toLocaleDateString('id-ID')}.json`;
+            const link = document.createElement('a');
+            link.setAttribute('href', dataUri);
+            link.setAttribute('download', fileName);
+            link.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    state = { ...state, ...imported };
+                    render();
+                    showAlert('Seluruh data & riwayat berhasil dimuat! 🔄');
+                } catch (err) { showAlert('File tidak valid'); }
+            };
+            reader.readAsText(file);
+        }
+
+        // Standard Rendering
+        function updateGaji(val) {
+            state.gaji = parseThousands(val);
+            renderTotals();
+            document.getElementById('input-gaji').value = formatThousands(state.gaji);
+        }
+
+        function addPemasukanLain() {
+            state.pemasukanLain.push({ id: Date.now(), name: '', nominal: 0 });
+            render();
+        }
+
+        function addNewItem() {
+            state.items.push({ id: Date.now(), name: '', nominal: 0, type: 'fixed', subItems: [] });
+            render();
+        }
+
+        function toggleExpand(id) {
+            if (state.expandedItems.has(id)) state.expandedItems.delete(id);
+            else state.expandedItems.add(id);
+            render();
+        }
+
+        function itemUpdate(key, id, field, val) {
+            const item = state[key].find(i => i.id === id);
+            if (field === 'nominal') {
+                item[field] = parseThousands(val);
+                renderTotals();
+            } else item[field] = val;
+            if (field === 'nominal') render();
+        }
+
+        function subUpdate(parentId, subId, field, val) {
+            const item = state.items.find(i => i.id === parentId);
+            const sub = item.subItems.find(s => s.id === subId);
+            if (field === 'nominal') {
+                sub[field] = parseThousands(val);
+                renderTotals();
+            } else sub[field] = val;
+            if (field === 'nominal') render();
+        }
+
+        function addSubItem(id) {
+            const item = state.items.find(i => i.id === id);
+            if (!item.subItems) item.subItems = [];
+            item.subItems.push({ id: Date.now(), name: '', nominal: 0, type: 'fixed' });
+            state.expandedItems.add(id);
+            render();
+        }
+
+        function cycleType(id, isSub = false, parentId = null) {
+            const targetArr = isSub ? state.items.find(i => i.id === parentId).subItems : state.items;
+            const target = targetArr.find(i => i.id === id);
+            const idx = TYPE_ORDER.indexOf(target.type || 'fixed');
+            target.type = TYPE_ORDER[(idx + 1) % TYPE_ORDER.length];
+            render();
+        }
+
+        function deleteRow(key, id) {
+            state[key] = state[key].filter(i => i.id !== id);
+            render();
+        }
+
+        function deleteSub(parentId, subId) {
+            const item = state.items.find(i => i.id === parentId);
+            item.subItems = item.subItems.filter(s => s.id !== subId);
+            render();
+        }
+
+        function renderTotals() {
+            const totalLain = (state.pemasukanLain || []).reduce((s, i) => s + (i.nominal || 0), 0);
+            const totalIn = (state.gaji || 0) + totalLain;
+            const totalOut = (state.items || []).reduce((s, i) => s + (i.nominal || 0), 0);
+            const sisa = totalIn - totalOut;
+
+            document.getElementById('display-total-pemasukan').innerText = formatIDR(totalIn);
+            document.getElementById('display-total-pengeluaran').innerText = formatIDR(totalOut);
+            const sisaEl = document.getElementById('display-sisa');
+            sisaEl.innerText = formatIDR(sisa);
+            sisaEl.className = `text-sm font-extrabold truncate ${sisa < 0 ? 'text-rose-600' : 'text-indigo-600'}`;
+        }
+
+        function render() {
+            renderTotals();
+            document.getElementById('input-gaji').value = formatThousands(state.gaji);
+
+            // Render Pemasukan Lain
+            document.getElementById('pemasukan-lain-container').innerHTML = (state.pemasukanLain || []).map(item => `
+                <div class="flex items-center gap-3 p-2 bg-white rounded-xl border border-emerald-100/50 shadow-sm">
+                    <input type="text" placeholder="Lainnya..." value="${item.name}" oninput="itemUpdate('pemasukanLain', ${item.id}, 'name', this.value)" class="flex-1 bg-transparent text-xs font-bold text-slate-700">
+                    <div class="flex items-center gap-1">
+                        <span class="text-[9px] text-emerald-500 font-bold">Rp</span>
+                        <input type="text" value="${formatThousands(item.nominal)}" oninput="itemUpdate('pemasukanLain', ${item.id}, 'nominal', this.value)" class="w-24 bg-transparent text-xs font-extrabold text-right text-emerald-700">
+                    </div>
+                    <button onclick="deleteRow('pemasukanLain', ${item.id})" class="text-rose-300 hover:text-rose-500"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                </div>
+            `).join('');
+
+            // Render Pengeluaran
+            document.getElementById('items-container').innerHTML = (state.items || []).map(item => {
+                const typeInfo = TYPE_CONFIG[item.type || 'fixed'];
+                const isExpanded = state.expandedItems.has(item.id);
+                const totalSub = (item.subItems || []).reduce((s, i) => s + (i.nominal || 0), 0);
+                const sisa = (item.nominal || 0) - totalSub;
+
+                return `
+                <div class="bg-white border-b last:border-0 border-slate-50">
+                    <div class="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-xl group">
+                        <button onclick="cycleType(${item.id})" class="w-3 h-3 rounded-full ${typeInfo.color} flex-shrink-0"></button>
+                        <button onclick="toggleExpand(${item.id})" class="text-slate-400">
+                            <i data-lucide="${isExpanded ? 'chevron-down' : 'chevron-right'}" class="w-4 h-4"></i>
+                        </button>
+                        <div class="flex-1">
+                            <input type="text" placeholder="Anggaran..." value="${item.name}" oninput="itemUpdate('items', ${item.id}, 'name', this.value)" class="w-full bg-transparent text-xs font-bold text-slate-800">
+                            ${(item.subItems || []).length > 0 ? `<span class="text-[8px] font-bold uppercase ${sisa < 0 ? 'text-rose-500' : 'text-emerald-500'}">Sisa: ${formatIDR(sisa)}</span>` : ''}
+                        </div>
+                        <div class="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-lg">
+                            <input type="text" value="${formatThousands(item.nominal)}" oninput="itemUpdate('items', ${item.id}, 'nominal', this.value)" class="w-20 bg-transparent text-xs font-extrabold text-right text-slate-700">
+                        </div>
+                        <div class="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="addSubItem(${item.id})" class="p-1 text-indigo-500"><i data-lucide="plus-circle" class="w-3.5 h-3.5"></i></button>
+                            <button onclick="deleteRow('items', ${item.id})" class="p-1 text-rose-400"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                    </div>
+                    ${isExpanded ? `
+                        <div class="ml-10 mr-2 mb-2 p-3 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
+                            ${(item.subItems || []).map(sub => `
+                                <div class="flex items-center gap-2 bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm">
+                                    <button onclick="cycleType(${sub.id}, true, ${item.id})" class="w-2 h-2 rounded-full ${TYPE_CONFIG[sub.type || 'fixed'].color} flex-shrink-0"></button>
+                                    <input type="text" placeholder="Rincian..." value="${sub.name}" oninput="subUpdate(${item.id}, ${sub.id}, 'name', this.value)" class="flex-1 bg-transparent text-[11px] font-bold text-slate-600">
+                                    <input type="text" value="${formatThousands(sub.nominal)}" oninput="subUpdate(${item.id}, ${sub.id}, 'nominal', this.value)" class="w-16 bg-transparent text-[11px] font-extrabold text-right text-slate-700">
+                                    <button onclick="deleteSub(${item.id}, ${sub.id})" class="text-rose-300"><i data-lucide="trash-2" class="w-3 h-3"></i></button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>`;
+            }).join('');
+
+            // Render History
+            const histCont = document.getElementById('history-container');
+            if (state.history.length === 0) {
+                histCont.innerHTML = `<div class="text-center py-6 border-2 border-dashed border-slate-100 rounded-2xl">
+                    <p class="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Belum ada riwayat tersimpan</p>
+                </div>`;
+            } else {
+                histCont.innerHTML = state.history.map(h => `
+                    <div onclick="openHistoryDetail(${h.id})" class="bg-white border border-slate-200 p-3 rounded-2xl shadow-sm hover:border-indigo-300 transition-all cursor-pointer group flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-slate-100 p-2 rounded-xl text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500 transition-all">
+                                <i data-lucide="file-text" class="w-4 h-4"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800">${h.label}</h4>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Sisa Saldo: ${formatIDR(h.summary.sisa)}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="text-right mr-2">
+                                <p class="text-[8px] font-bold text-slate-300 uppercase leading-none mb-1">Pengeluaran</p>
+                                <p class="text-[11px] font-black text-rose-500 leading-none">${formatIDR(h.summary.totalOut)}</p>
+                            </div>
+                            <button onclick="deleteHistory(${h.id}, event)" class="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            lucide.createIcons();
+        }
+    </script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js');
+    });
+  }
+</script>
+</body>
+</html>
