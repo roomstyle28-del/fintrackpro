@@ -3,414 +3,458 @@
 <head>
 <link rel="manifest" href="manifest.json">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FinTrack Pro - Smart Finance Planner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartFinance - Kelola Anggaran Keluarga</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; touch-action: manipulation; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        input:focus { outline: none; }
-        .modal-overlay { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); }
-        /* Memastikan area klik cukup besar untuk mobile */
-        .touch-target { min-height: 44px; min-width: 44px; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 pb-24">
+<body class="bg-slate-50 text-slate-800">
+    <div id="root"></div>
 
-    <div id="app">
-        <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-md">
-            <div class="max-w-4xl mx-auto px-4 py-3">
-                <div class="flex justify-between items-center mb-3">
-                    <div class="flex items-center gap-2">
-                        <div class="bg-indigo-600 p-1.5 rounded-lg shadow-sm">
-                            <i data-lucide="wallet" class="w-5 h-5 text-white"></i>
-                        </div>
-                        <div>
-                            <h1 class="text-sm font-bold text-slate-800 leading-none">FinTrack Pro</h1>
-                            <p id="current-month" class="text-[10px] text-slate-500 font-medium"></p>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="exportData()" title="Cadangkan Data" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
-                            <i data-lucide="download" class="w-4 h-4"></i>
-                        </button>
-                        <button onclick="document.getElementById('importFile').click()" title="Pulihkan Data" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
-                            <i data-lucide="upload" class="w-4 h-4"></i>
-                        </button>
-                        <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
-                        <button onclick="saveToLocal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 hover:bg-indigo-700 transition-all text-xs font-bold shadow-sm">
-                            <i data-lucide="save" class="w-4 h-4"></i> Simpan
-                        </button>
-                    </div>
-                </div>
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
 
-                <div class="grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center">
-                    <div class="flex flex-col">
-                        <span class="text-[9px] uppercase font-extrabold text-slate-400 tracking-tight">Pemasukan</span>
-                        <span id="display-total-pemasukan" class="text-sm font-extrabold truncate text-emerald-600">Rp 0</span>
-                    </div>
-                    <div class="flex flex-col border-x border-slate-100 px-1">
-                        <span class="text-[9px] uppercase font-extrabold text-slate-400 tracking-tight">Pengeluaran</span>
-                        <span id="display-total-pengeluaran" class="text-sm font-extrabold truncate text-rose-600">Rp 0</span>
-                    </div>
-                    <div class="flex flex-col">
-                        <span class="text-[9px] uppercase font-extrabold text-slate-400 tracking-tight">Saldo Sisa</span>
-                        <span id="display-sisa" class="text-sm font-extrabold truncate text-indigo-600">Rp 0</span>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <main class="max-w-4xl mx-auto p-4 space-y-6">
-            <!-- SEKSI PEMASUKAN -->
-            <section class="bg-emerald-50/50 rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
-                <div class="bg-emerald-100/50 px-4 py-3 border-b border-emerald-200/50 flex justify-between items-center">
-                    <div class="flex items-center gap-2 text-emerald-700">
-                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                        <h2 class="font-bold text-xs tracking-tight uppercase">Pemasukan Bulan Ini</h2>
-                    </div>
-                </div>
-                <div class="p-3 space-y-2">
-                    <div class="flex items-center gap-3 p-2 bg-white rounded-xl border border-emerald-100/50 shadow-sm">
-                        <div class="flex-1">
-                            <p class="text-[9px] font-bold text-slate-400 uppercase mb-1">Gaji Pokok</p>
-                            <input type="text" inputmode="numeric" id="input-gaji" oninput="updateGaji(this.value)" class="w-full bg-transparent border-none p-0 text-sm font-extrabold text-emerald-700" value="0">
-                        </div>
-                    </div>
-                    <div id="pemasukan-lain-container" class="space-y-2"></div>
-                    <button onclick="addPemasukanLain()" class="w-full p-3 text-[10px] font-bold text-emerald-600 hover:bg-emerald-100 rounded-xl flex items-center justify-center gap-1.5 border border-dashed border-emerald-200 uppercase tracking-widest transition-all">
-                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah Pemasukan Lain
-                    </button>
-                </div>
-            </section>
-
-            <!-- SEKSI PENGELUARAN -->
-            <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="bg-slate-50/50 px-4 py-3 border-b border-slate-100 flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="layout-list" class="w-3.5 h-3.5 text-indigo-400"></i>
-                        <h2 class="font-bold text-slate-700 text-xs uppercase tracking-wider">Daftar Pengeluaran</h2>
-                    </div>
-                </div>
-                <div id="items-container" class="divide-y divide-slate-100"></div>
-                <div class="p-3">
-                    <button onclick="addNewItem()" class="w-full p-3 text-[10px] font-bold text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl flex items-center justify-center gap-1.5 border border-dashed border-slate-300 uppercase tracking-widest transition-all">
-                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Tambah Kategori Pengeluaran
-                    </button>
-                </div>
-            </section>
-
-            <!-- SEKSI RIWAYAT -->
-            <section class="mt-10 pt-6 border-t border-slate-200">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2 uppercase tracking-widest">
-                        <i data-lucide="history" class="w-4 h-4 text-slate-400"></i> Riwayat Simpanan
-                    </h2>
-                    <button onclick="archiveCurrentMonth()" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all">
-                        <i data-lucide="archive" class="w-3.5 h-3.5"></i> Simpan ke Riwayat
-                    </button>
-                </div>
-                <div id="history-container" class="grid grid-cols-1 gap-3"></div>
-            </section>
-        </main>
-    </div>
-
-    <!-- MODAL RIWAYAT -->
-    <div id="history-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay opacity-0 pointer-events-none transition-opacity duration-300">
-        <div class="bg-white w-[90%] max-w-lg rounded-3xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden">
-            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <div>
-                    <h3 id="modal-title" class="font-bold text-slate-800">Detail Riwayat</h3>
-                    <p id="modal-date" class="text-[10px] text-slate-500"></p>
-                </div>
-                <button onclick="closeModal()" class="p-2 hover:bg-slate-200 rounded-full transition-all touch-target">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div id="modal-content" class="p-4 overflow-y-auto space-y-4 no-scrollbar"></div>
-            <div class="p-4 border-t border-slate-100 bg-slate-50 flex gap-2">
-                <button onclick="restoreFromHistory()" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-xs font-bold shadow-lg hover:bg-indigo-700 transition-all">Pulihkan Data Ini</button>
-                <button onclick="closeModal()" class="flex-1 bg-white border border-slate-200 text-slate-600 py-3 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all">Tutup</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="custom-alert" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 bg-slate-800 text-white px-6 py-3 rounded-full text-xs font-bold shadow-2xl opacity-0 pointer-events-none transition-all duration-300">
-        Pesan di sini
-    </div>
-
-    <script>
-        let state = {
-            gaji: 0,
-            pemasukanLain: [],
-            items: [],
-            history: [],
-            expandedItems: new Set()
+        // Icon Components using Lucide
+        const Icon = ({ name, className = "w-5 h-5" }) => {
+            useEffect(() => {
+                lucide.createIcons();
+            }, [name]);
+            return <i data-lucide={name} className={className}></i>;
         };
 
-        let selectedHistoryId = null;
-
-        const TYPE_CONFIG = {
-            fixed: { label: 'Pasti', color: 'bg-rose-500' },
-            important: { label: 'Penting', color: 'bg-amber-500' },
-            saving: { label: 'Tabungan', color: 'bg-emerald-500' },
-            other: { label: 'Lainnya', color: 'bg-slate-400' }
-        };
-        const TYPE_ORDER = ['fixed', 'important', 'saving', 'other'];
-
-        window.onload = () => {
-            const saved = localStorage.getItem('fintrack_data_pro');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                state.gaji = parsed.gaji || 0;
-                state.pemasukanLain = parsed.pemasukanLain || [];
-                state.items = parsed.items || [];
-                state.history = parsed.history || [];
-            }
-            document.getElementById('current-month').innerText = new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' });
-            render();
+        const formatIDR = (val) => {
+            if (val === undefined || val === null) return "0";
+            return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
         };
 
-        function formatThousands(num) {
-            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        }
+        const parseNumber = (val) => {
+            if (typeof val === 'number') return val;
+            if (!val) return 0;
+            const clean = val.replace(/\./g, '').replace(/,/g, '');
+            return parseInt(clean) || 0;
+        };
 
-        function parseThousands(str) {
-            if (typeof str !== 'string') str = str.toString();
-            return parseInt(str.replace(/\./g, "").replace(/[^0-9]/g, "")) || 0;
-        }
-
-        function formatIDR(num) {
-            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
-        }
-
-        function showAlert(msg) {
-            const alert = document.getElementById('custom-alert');
-            alert.innerText = msg;
-            alert.classList.remove('opacity-0', 'pointer-events-none');
-            setTimeout(() => alert.classList.add('opacity-0', 'pointer-events-none'), 3000);
-        }
-
-        function saveToLocal() {
-            localStorage.setItem('fintrack_data_pro', JSON.stringify(state));
-            showAlert('Data tersimpan secara otomatis ✅');
-        }
-
-        function handleNumberInput(element, callback) {
-            const rawValue = element.value;
-            const parsed = parseThousands(rawValue);
-            element.value = formatThousands(parsed);
-            callback(parsed);
-            renderTotals();
-            updateLabelSisa();
-        }
-
-        function updateGaji(val) {
-            const element = document.getElementById('input-gaji');
-            handleNumberInput(element, (num) => { state.gaji = num; });
-        }
-
-        function itemUpdate(key, id, field, val, element) {
-            const item = state[key].find(i => i.id === id);
-            if (field === 'nominal') {
-                handleNumberInput(element, (num) => { item.nominal = num; });
-            } else {
-                item[field] = val;
-            }
-        }
-
-        function subUpdate(parentId, subId, field, val, element) {
-            const item = state.items.find(i => i.id === parentId);
-            const sub = item.subItems.find(s => s.id === subId);
-            if (field === 'nominal') {
-                handleNumberInput(element, (num) => { sub.nominal = num; });
-            } else {
-                sub[field] = val;
-            }
-        }
-
-        function updateLabelSisa() {
-            state.items.forEach(item => {
-                const totalSub = (item.subItems || []).reduce((s, i) => s + (i.nominal || 0), 0);
-                const sisa = item.nominal - totalSub;
-                const label = document.getElementById(`sisa-label-${item.id}`);
-                if (label) {
-                    label.innerText = `Sisa: ${formatIDR(sisa)}`;
-                    label.className = `text-[8px] font-bold uppercase transition-colors ${sisa < 0 ? 'text-rose-500' : 'text-emerald-500'}`;
+        function App() {
+            // State Utama
+            const [salary, setSalary] = useState(10000000);
+            const [categories, setCategories] = useState([
+                {
+                    id: 'cat-wife',
+                    title: 'Anggaran Istri',
+                    allocated: 3000000,
+                    items: [
+                        { id: 'sub-1', name: 'Belanja Dapur', amount: 2000000, isCalculated: true },
+                        { id: 'sub-2', name: 'Skincare', amount: 500000, isCalculated: true }
+                    ]
                 }
-            });
-        }
+            ]);
+            const [savingsTarget, setSavingsTarget] = useState(1000000);
+            const [history, setHistory] = useState([]);
+            const [currentMonth, setCurrentMonth] = useState(new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' }));
+            
+            // UI State
+            const [draggedItem, setDraggedItem] = useState(null);
+            const [showHistoryModal, setShowHistoryModal] = useState(false);
 
-        function renderTotals() {
-            const totalLain = (state.pemasukanLain || []).reduce((s, i) => s + (i.nominal || 0), 0);
-            const totalIn = (state.gaji || 0) + totalLain;
-            const totalOut = (state.items || []).reduce((s, i) => s + (i.nominal || 0), 0);
-            const sisa = totalIn - totalOut;
+            useEffect(() => {
+                const saved = localStorage.getItem('finance_history_v2');
+                if (saved) setHistory(JSON.parse(saved));
+                lucide.createIcons();
+            }, []);
 
-            document.getElementById('display-total-pemasukan').innerText = formatIDR(totalIn);
-            document.getElementById('display-total-pengeluaran').innerText = formatIDR(totalOut);
-            const sisaEl = document.getElementById('display-sisa');
-            sisaEl.innerText = formatIDR(sisa);
-            sisaEl.className = `text-sm font-extrabold truncate ${sisa < 0 ? 'text-rose-600' : 'text-indigo-600'}`;
-        }
+            const totals = useMemo(() => {
+                let totalSpent = 0;
+                categories.forEach(cat => {
+                    cat.items.forEach(item => {
+                        if (item.isCalculated) totalSpent += item.amount;
+                    });
+                });
+                return {
+                    spent: totalSpent,
+                    remaining: salary - totalSpent,
+                    afterSavings: salary - totalSpent - savingsTarget
+                };
+            }, [salary, categories, savingsTarget]);
 
-        function render() {
-            renderTotals();
-            document.getElementById('input-gaji').value = formatThousands(state.gaji);
+            const saveToHistory = () => {
+                const record = {
+                    id: currentMonth,
+                    updatedAt: Date.now(),
+                    month: currentMonth,
+                    salary,
+                    categories: JSON.parse(JSON.stringify(categories)),
+                    savingsTarget
+                };
 
-            // Render Pemasukan Lain
-            document.getElementById('pemasukan-lain-container').innerHTML = (state.pemasukanLain || []).map(item => `
-                <div class="flex items-center gap-3 p-2 bg-white rounded-xl border border-emerald-100 shadow-sm">
-                    <input type="text" placeholder="Lainnya..." value="${item.name}" oninput="itemUpdate('pemasukanLain', ${item.id}, 'name', this.value)" class="flex-1 bg-transparent text-xs font-bold text-slate-700">
-                    <div class="flex items-center gap-1">
-                        <span class="text-[9px] text-emerald-400 font-bold">Rp</span>
-                        <input type="text" inputmode="numeric" value="${formatThousands(item.nominal)}" oninput="itemUpdate('pemasukanLain', ${item.id}, 'nominal', this.value, this)" class="w-24 bg-transparent text-xs font-extrabold text-right text-emerald-700">
-                    </div>
-                    <button onclick="deleteRow('pemasukanLain', ${item.id})" class="text-rose-300 p-2 touch-target"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                </div>
-            `).join('');
+                const existingIndex = history.findIndex(h => h.id === currentMonth);
+                let newHistory;
+                
+                if (existingIndex >= 0) {
+                    newHistory = [...history];
+                    newHistory[existingIndex] = record;
+                } else {
+                    newHistory = [record, ...history];
+                }
 
-            // Render Pengeluaran
-            document.getElementById('items-container').innerHTML = (state.items || []).map(item => {
-                const typeInfo = TYPE_CONFIG[item.type || 'fixed'];
-                const isExpanded = state.expandedItems.has(item.id);
-                const totalSub = (item.subItems || []).reduce((s, i) => s + (i.nominal || 0), 0);
-                const sisa = (item.nominal || 0) - totalSub;
+                setHistory(newHistory);
+                localStorage.setItem('finance_history_v2', JSON.stringify(newHistory));
+                alert(`Data "${currentMonth}" berhasil disimpan!`);
+            };
 
-                return `
-                <div class="bg-white">
-                    <!-- Baris Utama Pengeluaran -->
-                    <div class="flex items-center gap-2 p-3 hover:bg-slate-50 transition-colors">
-                        <button onclick="cycleType(${item.id})" class="w-4 h-4 rounded-full ${typeInfo.color} flex-shrink-0 shadow-sm"></button>
-                        <button onclick="toggleExpand(${item.id})" class="text-slate-400 touch-target">
-                            <i data-lucide="${isExpanded ? 'chevron-down' : 'chevron-right'}" class="w-5 h-5"></i>
-                        </button>
-                        <div class="flex-1 overflow-hidden">
-                            <input type="text" placeholder="Nama Anggaran..." value="${item.name}" oninput="itemUpdate('items', ${item.id}, 'name', this.value)" class="w-full bg-transparent text-xs font-bold text-slate-800">
-                            <span id="sisa-label-${item.id}" class="text-[8px] font-bold uppercase ${sisa < 0 ? 'text-rose-500' : 'text-emerald-500'}">Sisa: ${formatIDR(sisa)}</span>
+            const loadHistory = (record) => {
+                setSalary(record.salary);
+                setCategories(record.categories);
+                setSavingsTarget(record.savingsTarget);
+                setCurrentMonth(record.month);
+                setShowHistoryModal(false);
+            };
+
+            const deleteHistory = (e, id) => {
+                e.stopPropagation();
+                const newHistory = history.filter(h => h.id !== id);
+                setHistory(newHistory);
+                localStorage.setItem('finance_history_v2', JSON.stringify(newHistory));
+            };
+
+            const addCategory = () => {
+                setCategories([...categories, { id: `cat-${Date.now()}`, title: 'Kategori Baru', allocated: 0, items: [] }]);
+            };
+
+            const deleteCategory = (catId) => {
+                setCategories(categories.filter(c => c.id !== catId));
+            };
+
+            const addItem = (catId) => {
+                setCategories(categories.map(cat => {
+                    if (cat.id === catId) {
+                        return {
+                            ...cat,
+                            items: [...cat.items, { id: `item-${Date.now()}`, name: 'Item Baru', amount: 0, isCalculated: true }]
+                        };
+                    }
+                    return cat;
+                }));
+            };
+
+            const updateItem = (catId, itemId, field, value) => {
+                setCategories(categories.map(cat => {
+                    if (cat.id === catId) {
+                        return {
+                            ...cat,
+                            items: cat.items.map(item => {
+                                if (item.id === itemId) {
+                                    const newVal = field === 'amount' ? parseNumber(value) : value;
+                                    return { ...item, [field]: newVal };
+                                }
+                                return item;
+                            })
+                        };
+                    }
+                    return cat;
+                }));
+            };
+
+            const deleteItem = (catId, itemId) => {
+                setCategories(categories.map(cat => {
+                    if (cat.id === catId) {
+                        return { ...cat, items: cat.items.filter(i => i.id !== itemId) };
+                    }
+                    return cat;
+                }));
+            };
+
+            // Drag and Drop Logic
+            const onDragStart = (e, item, sourceCatId) => setDraggedItem({ item, sourceCatId });
+            const onDragOver = (e) => e.preventDefault();
+            const onDrop = (e, targetCatId) => {
+                e.preventDefault();
+                if (!draggedItem) return;
+                const { item, sourceCatId } = draggedItem;
+                if (sourceCatId === targetCatId) return;
+
+                setCategories(categories.map(cat => {
+                    if (cat.id === sourceCatId) return { ...cat, items: cat.items.filter(i => i.id !== item.id) };
+                    if (cat.id === targetCatId) return { ...cat, items: [...cat.items, item] };
+                    return cat;
+                }));
+                setDraggedItem(null);
+            };
+
+            return (
+                <div className="min-h-screen pb-24 md:pb-12">
+                    {/* Top Header */}
+                    <header className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-4 md:px-12">
+                        <div className="max-w-6xl mx-auto flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Icon name="pie-chart" className="w-7 h-7 text-indigo-600" />
+                                <h1 className="text-xl font-extrabold tracking-tighter text-slate-900">Finanku</h1>
+                            </div>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setShowHistoryModal(true)}
+                                    className="p-3 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition"
+                                >
+                                    <Icon name="folder-open" />
+                                </button>
+                                <button 
+                                    onClick={saveToHistory}
+                                    className="px-5 py-2.5 bg-indigo-600 text-white rounded-full font-bold text-sm flex items-center gap-2 shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition"
+                                >
+                                    <Icon name="save" className="w-4 h-4" /> Simpan
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-1 bg-slate-100 px-2 py-1.5 rounded-xl border border-slate-200">
-                            <input type="text" inputmode="numeric" value="${formatThousands(item.nominal)}" oninput="itemUpdate('items', ${item.id}, 'nominal', this.value, this)" class="w-20 bg-transparent text-xs font-extrabold text-right text-slate-700">
-                        </div>
-                        <button onclick="deleteRow('items', ${item.id})" class="p-2 text-rose-300 hover:text-rose-500 transition-colors touch-target">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    </div>
+                    </header>
 
-                    <!-- Panel Rincian (Sub Items) -->
-                    ${isExpanded ? `
-                        <div class="bg-slate-50/80 px-4 pb-4 space-y-2 border-t border-slate-100 pt-3">
-                            <div class="space-y-2">
-                                ${(item.subItems || []).map(sub => `
-                                    <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
-                                        <button onclick="cycleType(${sub.id}, true, ${item.id})" class="w-2.5 h-2.5 rounded-full ${TYPE_CONFIG[sub.type || 'fixed'].color} flex-shrink-0"></button>
-                                        <input type="text" placeholder="Rincian..." value="${sub.name}" oninput="subUpdate(${item.id}, ${sub.id}, 'name', this.value)" class="flex-1 bg-transparent text-[11px] font-bold text-slate-600">
-                                        <div class="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-lg">
-                                            <span class="text-[8px] text-slate-400 font-bold italic">Rp</span>
-                                            <input type="text" inputmode="numeric" value="${formatThousands(sub.nominal)}" oninput="subUpdate(${item.id}, ${sub.id}, 'nominal', this.value, this)" class="w-16 bg-transparent text-[11px] font-black text-right text-slate-700">
-                                        </div>
-                                        <button onclick="deleteSub(${item.id}, ${sub.id})" class="text-rose-200 hover:text-rose-400 p-1.5 touch-target"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                    <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+                        {/* Summary Section */}
+                        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200/60 shadow-sm">
+                                <div className="space-y-5">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pemasukan</span>
+                                        <input 
+                                            type="text" 
+                                            value={currentMonth}
+                                            onChange={(e) => setCurrentMonth(e.target.value)}
+                                            className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2.5 py-1 rounded-full outline-none"
+                                        />
                                     </div>
-                                `).join('')}
+                                    <div className="relative">
+                                        <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-300 font-bold text-xl">Rp</span>
+                                        <input 
+                                            type="text"
+                                            className="w-full pl-8 pr-4 py-1 bg-transparent text-3xl font-black text-slate-800 outline-none transition"
+                                            value={formatIDR(salary)}
+                                            onChange={(e) => setSalary(parseNumber(e.target.value))}
+                                        />
+                                    </div>
+                                    <div className="pt-4 border-t border-slate-50">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block tracking-wider">Target Tabungan</label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-emerald-500 font-bold">Rp</span>
+                                            <input 
+                                                type="text"
+                                                className="w-full p-0 bg-transparent text-emerald-600 font-black text-lg outline-none"
+                                                value={formatIDR(savingsTarget)}
+                                                onChange={(e) => setSavingsTarget(parseNumber(e.target.value))}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            
-                            <!-- TOMBOL TAMBAH SUB PENGELUARAN YANG LEBIH BESAR -->
-                            <button onclick="addSubItem(${item.id})" class="w-full mt-2 py-2.5 bg-white border border-indigo-100 rounded-xl flex items-center justify-center gap-2 text-indigo-500 hover:bg-indigo-50 transition-all shadow-sm">
-                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                                <span class="text-[10px] font-bold uppercase tracking-wider">Tambah Rincian Pengeluaran</span>
+
+                            <div className="md:col-span-2 bg-indigo-600 rounded-[2.5rem] p-8 text-white flex flex-col justify-between shadow-2xl shadow-indigo-200 overflow-hidden relative">
+                                <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12">
+                                    <Icon name="dollar-sign" className="w-32 h-32" />
+                                </div>
+                                <div className="relative z-10">
+                                    <p className="text-indigo-200 text-xs font-black uppercase tracking-widest mb-1">Sisa Anggaran Akhir</p>
+                                    <h2 className="text-5xl font-black tracking-tighter">Rp {formatIDR(totals.afterSavings)}</h2>
+                                </div>
+                                <div className="relative z-10 grid grid-cols-2 gap-8 pt-8 mt-8 border-t border-white/10">
+                                    <div>
+                                        <p className="text-indigo-200 text-[10px] font-bold uppercase tracking-widest">Total Belanja</p>
+                                        <p className="text-xl font-bold">Rp {formatIDR(totals.spent)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-indigo-200 text-[10px] font-bold uppercase tracking-widest">Saldo Murni</p>
+                                        <p className="text-xl font-bold text-emerald-300 tracking-tight">Rp {formatIDR(totals.remaining)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* List Anggaran */}
+                        <section className="space-y-6">
+                            {categories.map((cat) => {
+                                const catSpent = cat.items.reduce((acc, i) => acc + (i.isCalculated ? i.amount : 0), 0);
+                                const catRemaining = cat.allocated - catSpent;
+
+                                return (
+                                    <div 
+                                        key={cat.id}
+                                        className="bg-white rounded-[2rem] border border-slate-200/80 shadow-sm overflow-hidden"
+                                        onDragOver={onDragOver}
+                                        onDrop={(e) => onDrop(e, cat.id)}
+                                    >
+                                        {/* Cat Header */}
+                                        <div className="p-5 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-3 bg-white rounded-2xl shadow-sm text-indigo-500">
+                                                    {cat.title.toLowerCase().includes('istri') ? <Icon name="user" /> : <Icon name="baby" />}
+                                                </div>
+                                                <div>
+                                                    <input 
+                                                        className="font-black text-slate-800 bg-transparent outline-none text-xl tracking-tight"
+                                                        value={cat.title}
+                                                        onChange={(e) => setCategories(categories.map(c => c.id === cat.id ? {...c, title: e.target.value} : c))}
+                                                    />
+                                                    <div className="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                                        ALOKASI: Rp
+                                                        <input 
+                                                            className="bg-transparent border-none p-0 w-28 focus:ring-0 outline-none font-black text-slate-500"
+                                                            value={formatIDR(cat.allocated)}
+                                                            onChange={(e) => setCategories(categories.map(c => c.id === cat.id ? {...c, allocated: parseNumber(e.target.value)} : c))}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between sm:justify-end gap-6 pt-4 sm:pt-0 border-t sm:border-none border-slate-100">
+                                                <div className="text-right">
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sisa</p>
+                                                    <p className={`text-lg font-black tracking-tight ${catRemaining < 0 ? 'text-red-500' : 'text-indigo-600'}`}>
+                                                        Rp {formatIDR(catRemaining)}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => addItem(cat.id)} className="p-2.5 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100 transition">
+                                                        <Icon name="plus" />
+                                                    </button>
+                                                    <button onClick={() => deleteCategory(cat.id)} className="p-2.5 bg-red-50 text-red-400 rounded-full hover:bg-red-100 transition">
+                                                        <Icon name="trash-2" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Items List */}
+                                        <div className="divide-y divide-slate-50 min-h-[40px]">
+                                            {cat.items.map((item) => (
+                                                <div 
+                                                    key={item.id}
+                                                    draggable
+                                                    onDragStart={(e) => onDragStart(e, item, cat.id)}
+                                                    className="flex items-center gap-4 p-4 hover:bg-slate-50 transition active:bg-slate-100 group"
+                                                >
+                                                    <div className="cursor-grab p-1 text-slate-200 group-hover:text-slate-400 transition">
+                                                        <Icon name="grip-vertical" className="w-4 h-4" />
+                                                    </div>
+                                                    
+                                                    <input 
+                                                        type="checkbox"
+                                                        checked={item.isCalculated}
+                                                        onChange={(e) => updateItem(cat.id, item.id, 'isCalculated', e.target.checked)}
+                                                        className="w-5 h-5 rounded-lg border-slate-300 text-indigo-600 focus:ring-0 cursor-pointer"
+                                                    />
+
+                                                    <div className="flex-1 flex flex-col sm:flex-row gap-3">
+                                                        <input 
+                                                            className={`bg-transparent text-sm font-semibold outline-none flex-grow ${!item.isCalculated ? 'text-slate-300 line-through' : 'text-slate-700'}`}
+                                                            value={item.name}
+                                                            onChange={(e) => updateItem(cat.id, item.id, 'name', e.target.value)}
+                                                        />
+                                                        <div className="relative sm:w-48">
+                                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300 uppercase">Rp</span>
+                                                            <input 
+                                                                className="w-full pl-9 pr-3 py-1.5 bg-slate-50/80 rounded-xl text-right font-mono text-sm font-bold text-slate-700 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-100 transition"
+                                                                value={formatIDR(item.amount)}
+                                                                onChange={(e) => updateItem(cat.id, item.id, 'amount', e.target.value)}
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <button onClick={() => deleteItem(cat.id, item.id)} className="p-2 text-slate-200 hover:text-red-500 sm:opacity-0 group-hover:opacity-100 transition">
+                                                        <Icon name="trash-2" className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {cat.items.length === 0 && <p className="text-center py-10 text-xs font-bold text-slate-300 uppercase tracking-widest">Klik + untuk menambah rincian</p>}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            <button 
+                                onClick={addCategory}
+                                className="w-full py-8 border-2 border-dashed border-slate-200 rounded-[2rem] text-slate-400 font-black text-xs uppercase tracking-[0.2em] hover:bg-white hover:border-indigo-300 hover:text-indigo-500 transition flex items-center justify-center gap-3"
+                            >
+                                <Icon name="plus" className="w-4 h-4" /> Tambah Kelompok Dana
                             </button>
+                        </section>
+                    </main>
+
+                    {/* Floating Bottom Bar (Mobile) */}
+                    <div className="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 backdrop-blur-xl border-t border-slate-100 p-5 flex justify-between items-center shadow-[0_-15px_30px_rgba(0,0,0,0.05)] z-40">
+                        <div>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Sisa Dana</p>
+                            <p className={`text-xl font-black tracking-tighter ${totals.afterSavings < 0 ? 'text-red-500' : 'text-indigo-600'}`}>
+                                Rp {formatIDR(totals.afterSavings)}
+                            </p>
                         </div>
-                    ` : ''}
-                </div>`;
-            }).join('');
-
-            renderHistory();
-            lucide.createIcons();
-        }
-
-        function renderHistory() {
-            const histCont = document.getElementById('history-container');
-            if (state.history.length === 0) {
-                histCont.innerHTML = `<div class="text-center py-8 border-2 border-dashed border-slate-200 rounded-2xl"><p class="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Belum ada riwayat tersimpan</p></div>`;
-            } else {
-                histCont.innerHTML = state.history.map(h => `
-                    <div onclick="openHistoryDetail(${h.id})" class="bg-white border border-slate-200 p-3 rounded-2xl shadow-sm hover:border-indigo-300 transition-all cursor-pointer group flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <div class="bg-slate-100 p-2 rounded-xl text-slate-400 group-hover:bg-indigo-50 transition-all"><i data-lucide="file-text" class="w-4 h-4"></i></div>
-                            <div><h4 class="text-xs font-bold text-slate-800">${h.label}</h4><p class="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Sisa Saldo: ${formatIDR(h.summary.sisa)}</p></div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div class="text-right mr-2"><p class="text-[8px] font-bold text-slate-300 uppercase leading-none mb-1">Pengeluaran</p><p class="text-[11px] font-black text-rose-500 leading-none">${formatIDR(h.summary.totalOut)}</p></div>
-                            <button onclick="deleteHistory(${h.id}, event)" class="p-3 text-slate-200 hover:text-rose-500 transition-all touch-target"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                        </div>
+                        <button onClick={saveToHistory} className="bg-indigo-600 text-white px-8 py-3 rounded-full font-black text-sm shadow-xl shadow-indigo-100 tracking-tighter">
+                            SIMPAN
+                        </button>
                     </div>
-                `).join('');
-            }
-        }
 
-        // Fungsionalitas Data
-        function addPemasukanLain() { state.pemasukanLain.push({ id: Date.now(), name: '', nominal: 0 }); render(); }
-        function addNewItem() { state.items.push({ id: Date.now(), name: '', nominal: 0, type: 'fixed', subItems: [] }); render(); }
-        function addSubItem(id) { 
-            const item = state.items.find(i => i.id === id); 
-            if (!item.subItems) item.subItems = []; 
-            item.subItems.push({ id: Date.now(), name: '', nominal: 0, type: 'fixed' }); 
-            state.expandedItems.add(id); 
-            render(); 
-        }
-        function deleteRow(key, id) { if(!confirm('Hapus data ini?')) return; state[key] = state[key].filter(i => i.id !== id); render(); }
-        function deleteSub(parentId, subId) { const item = state.items.find(i => i.id === parentId); item.subItems = item.subItems.filter(s => s.id !== subId); render(); }
-        function toggleExpand(id) { if (state.expandedItems.has(id)) state.expandedItems.delete(id); else state.expandedItems.add(id); render(); }
-        function cycleType(id, isSub = false, parentId = null) { const targetArr = isSub ? state.items.find(i => i.id === parentId).subItems : state.items; const target = targetArr.find(i => i.id === id); const idx = TYPE_ORDER.indexOf(target.type || 'fixed'); target.type = TYPE_ORDER[(idx + 1) % TYPE_ORDER.length]; render(); }
-        
-        function archiveCurrentMonth() {
-            const totalLain = state.pemasukanLain.reduce((s, i) => s + (i.nominal || 0), 0);
-            const totalIn = state.gaji + totalLain;
-            const totalOut = state.items.reduce((s, i) => s + (i.nominal || 0), 0);
-            if (totalIn === 0 && totalOut === 0) { showAlert('Data masih kosong'); return; }
-            const monthName = new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' });
-            state.history.unshift({ id: Date.now(), date: new Date().toISOString(), label: monthName, data: { gaji: state.gaji, pemasukanLain: JSON.parse(JSON.stringify(state.pemasukanLain)), items: JSON.parse(JSON.stringify(state.items)) }, summary: { totalIn, totalOut, sisa: totalIn - totalOut } });
-            saveToLocal(); render(); showAlert(`Catatan ${monthName} berhasil diarsipkan!`);
-        }
-
-        function openHistoryDetail(id) {
-            const h = state.history.find(item => item.id === id);
-            selectedHistoryId = id;
-            document.getElementById('modal-title').innerText = `Laporan ${h.label}`;
-            document.getElementById('modal-date').innerText = `Diarsipkan pada ${new Date(h.date).toLocaleDateString('id-ID', { dateStyle: 'full' })}`;
-            document.getElementById('modal-content').innerHTML = `
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                        <p class="text-[9px] font-bold text-emerald-600 uppercase mb-1">Pemasukan</p>
-                        <p class="text-sm font-black text-emerald-700">${formatIDR(h.summary.totalIn)}</p>
-                    </div>
-                    <div class="bg-rose-50 p-4 rounded-2xl border border-rose-100">
-                        <p class="text-[9px] font-bold text-rose-600 uppercase mb-1">Pengeluaran</p>
-                        <p class="text-sm font-black text-rose-700">${formatIDR(h.summary.totalOut)}</p>
-                    </div>
-                </div>
-                <div class="space-y-3">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">Daftar Pengeluaran</p>
-                    ${h.data.items.map(item => `
-                        <div class="flex justify-between items-start border-b border-slate-50 pb-2">
-                            <div>
-                                <p class="text-xs font-bold text-slate-800">${item.name || '(Tanpa Nama)'}</p>
-                                <p class="text-[9px] text-slate-400 uppercase font-bold">${item.type || 'fixed'}</p>
+                    {/* Modal Riwayat */}
+                    {showHistoryModal && (
+                        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 transition-all animate-in fade-in">
+                            <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-500">
+                                <div className="p-7 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+                                    <h2 className="text-2xl font-black text-slate-900 tracking-tighter flex items-center gap-3">
+                                        <Icon name="folder-open" className="text-indigo-600" /> Riwayat
+                                    </h2>
+                                    <button onClick={() => setShowHistoryModal(false)} className="p-2 hover:bg-slate-100 rounded-full">
+                                        <Icon name="x" />
+                                    </button>
+                                </div>
+                                
+                                <div className="max-h-[60vh] overflow-y-auto p-4 space-y-4 no-scrollbar">
+                                    {history.length === 0 ? (
+                                        <div className="text-center py-20 text-slate-300 font-bold uppercase text-[10px] tracking-[0.2em]">Kosong</div>
+                                    ) : (
+                                        history.map((h) => (
+                                            <div 
+                                                key={h.id} 
+                                                onClick={() => loadHistory(h)}
+                                                className="group flex items-center justify-between p-5 bg-slate-50/80 rounded-3xl border border-transparent hover:border-indigo-200 hover:bg-white cursor-pointer transition-all shadow-sm hover:shadow-md"
+                                            >
+                                                <div className="flex items-center gap-5">
+                                                    <div className="bg-white p-4 rounded-2xl shadow-sm text-indigo-600 group-hover:scale-110 transition-transform">
+                                                        <Icon name="calendar" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-black text-slate-800 text-lg tracking-tight">{h.month}</p>
+                                                        <p className="text-[10px] text-slate-400 uppercase font-black tracking-[0.1em]">
+                                                            Rp {formatIDR(h.salary)} • {h.categories.length} Kategori
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <button 
+                                                    onClick={(e) => deleteHistory(e, h.id)}
+                                                    className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition"
+                                                >
+                                                    <Icon name="trash-2" className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                <div className="p-8 bg-slate-50/50 text-center">
+                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] leading-relaxed">
+                                        Ketuk untuk memuat kembali catatan bulan lalu.
+                                    </p>
+                                </div>
                             </div>
-                            <span class="text-xs font-black text-slate-700">${formatIDR(item.nominal)}</span>
                         </div>
-                    `).join('')}
-                </div>`;
-            document.getElementById('history-modal').classList.remove('opacity-0', 'pointer-events-none');
+                    )}
+                </div>
+            );
         }
 
-        function closeModal() { document.getElementById('history-modal').classList.add('opacity-0', 'pointer-events-none'); }
-        function restoreFromHistory() { const h = state.history.find(item => item.id === selectedHistoryId); if(confirm(`Hapus data saat ini dan pulihkan data dari ${h.label}?`)) { state.gaji = h.data.gaji; state.pemasukanLain = JSON.parse(JSON.stringify(h.data.pemasukanLain)); state.items = JSON.parse(JSON.stringify(h.data.items)); closeModal(); render(); showAlert('Data berhasil dipulihkan!'); } }
-        function exportData() { const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(JSON.stringify(state)); const link = document.createElement('a'); link.setAttribute('href', dataUri); link.setAttribute('download', `FinTrack_Backup_${new Date().toLocaleDateString()}.json`); link.click(); }
-        function importData(event) { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { try { const imported = JSON.parse(e.target.result); state = { ...state, ...imported }; render(); showAlert('Data berhasil diimpor!'); } catch (err) { showAlert('File tidak valid'); } }; reader.readAsText(file); }
-        function deleteHistory(id, e) { e.stopPropagation(); if(!confirm('Hapus riwayat ini secara permanen?')) return; state.history = state.history.filter(h => h.id !== id); saveToLocal(); render(); }
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 <script>
   if ('serviceWorker' in navigator) {
