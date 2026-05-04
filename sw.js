@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fintrack-pro-v1.1.1';
+const CACHE_NAME = 'fintrack-pro-v2';
 const assets = [
   '/',
   '/index.html',
